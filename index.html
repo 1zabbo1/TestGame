@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+header {
+    background-color: #333;
+    color: white;
+    text-align: center;
+    padding: 1rem;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem;
+}
+
+#video-thumbnail {
+    max-width: 100%;
+}
+
+button {
+    background-color: #333;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    margin: 0.5rem;
+}
+
+#streak-section {
+    text-align: center;
+    margin-top: 1rem;
+}
+
+#streak-section p {
+    margin: 0.5rem;
+}
+
+.guess-btn {
+    flex: 1;
+}
+
+    </style>
+    <title>YouTube View Guessing Game</title>
+</head>
+<body>
+    <header>
+        <h1>YouTube View Guessing Game</h1>
+    </header>
+    <main>
+        <div id="video-container">
+            <img id="video-thumbnail" src="" alt="Video Thumbnail">
+        </div>
+        <button id="next-video">Next Video</button>
+        <div id="guess-section">
+            <button class="guess-btn" data-guess="true">Million+ Views</button>
+            <button class="guess-btn" data-guess="false">Not Million Views</button>
+        </div>
+        <div id="streak-section">
+            <p>Your Current Streak: <span id="current-streak">0</span></p>
+            <p>Highest Streak: <span id="highest-streak">0</span></p>
+        </div>
+    </main>
+    <script>
+        const videoThumbnail = document.getElementById('video-thumbnail');
+const nextVideoBtn = document.getElementById('next-video');
+const guessButtons = document.querySelectorAll('.guess-btn');
+const currentStreakElement = document.getElementById('current-streak');
+const highestStreakElement = document.getElementById('highest-streak');
+const apiKey = 'AIzaSyAO_Fmrpg8b7r8GZbGrpS29Ayb6UmPz3rY'; // Replace with your actual API key
+
+let currentStreak = 0;
+let highestStreak = getHighestStreakFromCookies();
+
+function fetchRandomVideo() {
+    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=50&key=${apiKey}`;
+
+    fetch(searchUrl)
+        .then(response => response.json())
+        .then(data => {
+            const randomIndex = Math.floor(Math.random() * data.items.length);
+            const randomVideoId = data.items[randomIndex].id.videoId;
+            const thumbnailUrl = data.items[randomIndex].snippet.thumbnails.medium.url;
+            
+            videoThumbnail.src = thumbnailUrl;
+            updateGuessButtons(randomVideoId);
+        })
+        .catch(error => console.error('Error fetching random video:', error));
+}
+
+function updateGuessButtons(videoId) {
+    guessButtons.forEach(button => {
+        button.setAttribute('data-video-id', videoId);
+    });
+}
+
+function updateStreakDisplay() {
+    currentStreakElement.textContent = currentStreak;
+    highestStreakElement.textContent = highestStreak;
+}
+
+function increaseStreak() {
+    currentStreak++;
+    if (currentStreak > highestStreak) {
+        highestStreak = currentStreak;
+        setHighestStreakInCookies(highestStreak);
+    }
+    updateStreakDisplay();
+}
+
+function resetStreak() {
+    currentStreak = 0;
+    updateStreakDisplay();
+}
+
+nextVideoBtn.addEventListener('click', fetchRandomVideo);
+
+guessButtons.forEach(button => {
+    button.addEventListener('click', () => {
+        const videoId = button.getAttribute('data-video-id');
+        const guess = button.getAttribute('data-guess');
+        
+        const apiUrl = `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoId}&key=${apiKey}`;
+        
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                const actualViewCount = parseInt(data.items[0].statistics.viewCount, 10);
+                const threshold = 1000000; // One million views threshold
+                const correctGuess = (guess === 'true' && actualViewCount >= threshold) ||
+                                    (guess === 'false' && actualViewCount < threshold);
+                
+                if (correctGuess) {
+                    increaseStreak();
+                } else {
+                    resetStreak();
+                }
+                
+                fetchRandomVideo();
+            })
+            .catch(error => console.error('Error fetching view count:', error));
+    });
+});
+
+fetchRandomVideo();
+
+function setHighestStreakInCookies(value) {
+    document.cookie = `highestStreak=${value}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/`;
+}
+
+function getHighestStreakFromCookies() {
+    const cookies = document.cookie.split('; ');
+    for (const cookie of cookies) {
+        const [name, value] = cookie.split('=');
+        if (name === 'highestStreak') {
+            return parseInt(value, 10);
+        }
+    }
+    return 0;
+}
+
+    </script>
+</body>
+</html>
